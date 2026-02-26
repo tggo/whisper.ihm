@@ -10,23 +10,22 @@ Offline speech-to-text transcription tool for long audio files. Built with [whis
 - Runs fully offline, no API keys required
 - Metal GPU acceleration on macOS (Apple Silicon)
 
-## Requirements
+## Install
 
-- macOS (Apple Silicon) or Linux
-- Go 1.23+
-- CMake
-- Git
-
-## Quick start
+### Homebrew (macOS)
 
 ```bash
-# Clone, build dependencies, download whisper model (~3 GB)
-make setup
+brew install tggo/tap/whisper-ihm
+```
 
-# Build the binary
-make build
+### From source
 
-# Transcribe an MP3
+Requires Go 1.23+, CMake, Git.
+
+```bash
+git clone https://github.com/tggo/whisper.ihm.git && cd whisper.ihm
+make setup   # clones deps, builds whisper.cpp, downloads model (~3 GB)
+make build   # compiles the binary
 ./whisper-ihm recording.mp3
 ```
 
