@@ -24,8 +24,23 @@ type audioSegment struct {
 
 var defaultModelPath = "models/ggml-large-v3.bin"
 
+var modelSizes = map[string]struct{ file, size string }{
+	"tiny":           {"ggml-tiny.bin", "75 MB"},
+	"tiny.en":        {"ggml-tiny.en.bin", "75 MB"},
+	"base":           {"ggml-base.bin", "142 MB"},
+	"base.en":        {"ggml-base.en.bin", "142 MB"},
+	"small":          {"ggml-small.bin", "466 MB"},
+	"small.en":       {"ggml-small.en.bin", "466 MB"},
+	"medium":         {"ggml-medium.bin", "1.5 GB"},
+	"medium.en":      {"ggml-medium.en.bin", "1.5 GB"},
+	"large-v2":       {"ggml-large-v2.bin", "3 GB"},
+	"large-v3":       {"ggml-large-v3.bin", "3 GB"},
+	"large-v3-turbo": {"ggml-large-v3-turbo.bin", "1.6 GB"},
+}
+
 func main() {
-	modelPath := flag.String("model", defaultModelPath, "Path to GGML model")
+	modelPath := flag.String("model", "", "Path to GGML model (overrides -size)")
+	size := flag.String("size", "large-v3", "Model size: tiny, base, small, medium, large-v2, large-v3, large-v3-turbo (append .en for English-only)")
 	lang := flag.String("lang", "auto", "Language code (default: auto-detect)")
 	translate := flag.Bool("translate", false, "Translate to English")
 	prompt := flag.String("prompt", "", "Initial prompt to guide transcription")
@@ -39,6 +54,8 @@ func main() {
 
 	if *help {
 		flag.Usage()
+		fmt.Fprintf(os.Stderr, "\nAvailable models:\n")
+		printModelList()
 		os.Exit(0)
 	}
 
@@ -48,15 +65,32 @@ func main() {
 	}
 	inputPath := flag.Arg(0)
 
+	// Resolve model path
+	resolvedModel := *modelPath
+	if resolvedModel == "" {
+		info, ok := modelSizes[*size]
+		if !ok {
+			fmt.Fprintf(os.Stderr, "Unknown model size %q. Available models:\n", *size)
+			printModelList()
+			os.Exit(1)
+		}
+		resolvedModel = filepath.Join(filepath.Dir(defaultModelPath), info.file)
+	}
+
 	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
 		fmt.Fprintf(os.Stderr, "Error: input file %q not found\n", inputPath)
 		os.Exit(1)
 	}
 
-	if _, err := os.Stat(*modelPath); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "Model not found at %s\n", *modelPath)
-		fmt.Fprintf(os.Stderr, "Downloading ggml-large-v3.bin (~3 GB)...\n")
-		if err := downloadModel(*modelPath); err != nil {
+	if _, err := os.Stat(resolvedModel); os.IsNotExist(err) {
+		if *modelPath != "" {
+			fmt.Fprintf(os.Stderr, "Error: model not found at %s\n", resolvedModel)
+			os.Exit(1)
+		}
+		info := modelSizes[*size]
+		fmt.Fprintf(os.Stderr, "Model not found at %s\n", resolvedModel)
+		fmt.Fprintf(os.Stderr, "Downloading %s (~%s)...\n", info.file, info.size)
+		if err := downloadModel(resolvedModel, info.file); err != nil {
 			fmt.Fprintf(os.Stderr, "Error downloading model: %v\n", err)
 			os.Exit(1)
 		}
@@ -71,8 +105,8 @@ func main() {
 	totalSec := float64(len(samples)) / 16000.0
 	fmt.Fprintf(os.Stderr, "Audio loaded: %.1f seconds\n", totalSec)
 
-	fmt.Fprintf(os.Stderr, "Loading model %s...\n", *modelPath)
-	model, err := whisper.New(*modelPath)
+	fmt.Fprintf(os.Stderr, "Loading model %s...\n", resolvedModel)
+	model, err := whisper.New(resolvedModel)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading model: %v\n", err)
 		os.Exit(1)
@@ -245,14 +279,23 @@ func convertToSamples(inputPath string) ([]float32, error) {
 	return out[:written], nil
 }
 
-const modelURL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin"
+const modelBaseURL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/"
 
-func downloadModel(dest string) error {
+func printModelList() {
+	order := []string{"tiny", "tiny.en", "base", "base.en", "small", "small.en",
+		"medium", "medium.en", "large-v2", "large-v3", "large-v3-turbo"}
+	for _, name := range order {
+		info := modelSizes[name]
+		fmt.Fprintf(os.Stderr, "  %-16s %s (%s)\n", name, info.file, info.size)
+	}
+}
+
+func downloadModel(dest, filename string) error {
 	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
 		return err
 	}
 
-	resp, err := http.Get(modelURL)
+	resp, err := http.Get(modelBaseURL + filename)
 	if err != nil {
 		return err
 	}
