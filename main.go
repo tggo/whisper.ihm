@@ -52,7 +52,7 @@ func main() {
 	lang := flag.String("lang", "auto", "Language code (default: auto-detect)")
 	translate := flag.Bool("translate", false, "Translate to English")
 	prompt := flag.String("prompt", "", "Initial prompt to guide transcription")
-	format := flag.String("format", "txt", "Output format: txt, json, srt")
+	format := flag.String("format", "txt", "Output format: txt, json, srt, md")
 	output := flag.String("output", "", "Output file (default: stdout)")
 	threads := flag.Int("threads", runtime.NumCPU(), "Number of threads")
 	help := flag.Bool("help", false, "Show help")
@@ -191,6 +191,13 @@ func main() {
 				srtTimestamp(seg.End),
 				seg.Text,
 			)
+		}
+	case "md", "markdown":
+		fmt.Fprintf(out, "# Transcript\n\n")
+		fmt.Fprintf(out, "| Time | Text |\n")
+		fmt.Fprintf(out, "|------|------|\n")
+		for _, seg := range segments {
+			fmt.Fprintf(out, "| %s → %s | %s |\n", seg.Start, seg.End, seg.Text)
 		}
 	default: // txt
 		for _, seg := range segments {
