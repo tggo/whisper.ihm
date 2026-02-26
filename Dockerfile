@@ -1,7 +1,7 @@
 FROM golang:1.23-bookworm AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    cmake git ca-certificates \
+    cmake git ca-certificates libc++-dev libc++abi-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
@@ -35,8 +35,11 @@ RUN C_INCLUDE_PATH=/src/whisper.cpp/include:/src/whisper.cpp/ggml/include \
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl \
+    ca-certificates curl libc++1 libc++abi1 \
     && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /src/ten-vad/lib/Linux/x64/libten_vad.so /usr/local/lib/
+RUN ldconfig
 
 COPY --from=builder /whisper-ihm /usr/local/bin/whisper-ihm
 
