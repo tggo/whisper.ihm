@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -47,6 +49,15 @@ func main() {
 	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
 		fmt.Fprintf(os.Stderr, "Error: input file %q not found\n", inputPath)
 		os.Exit(1)
+	}
+
+	if _, err := os.Stat(*modelPath); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "Model not found at %s\n", *modelPath)
+		fmt.Fprintf(os.Stderr, "Downloading ggml-large-v3.bin (~3 GB)...\n")
+		if err := downloadModel(*modelPath); err != nil {
+			fmt.Fprintf(os.Stderr, "Error downloading model: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	fmt.Fprintf(os.Stderr, "Converting audio to 16kHz mono...\n")
@@ -226,6 +237,67 @@ func convertToSamples(inputPath string) ([]float32, error) {
 	out := make([]float32, outLen)
 	_, written := resampler.Resample32(mono, srcRate, out, dstRate, 4)
 	return out[:written], nil
+}
+
+const modelURL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin"
+
+func downloadModel(dest string) error {
+	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+		return err
+	}
+
+	resp, err := http.Get(modelURL)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	tmp := dest + ".tmp"
+	f, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+
+	total := resp.ContentLength
+	var written int64
+	buf := make([]byte, 1024*1024)
+	lastPct := -1
+	for {
+		n, readErr := resp.Body.Read(buf)
+		if n > 0 {
+			if _, wErr := f.Write(buf[:n]); wErr != nil {
+				f.Close()
+				os.Remove(tmp)
+				return wErr
+			}
+			written += int64(n)
+			if total > 0 {
+				pct := int(written * 100 / total)
+				if pct != lastPct {
+					fmt.Fprintf(os.Stderr, "\rDownloading... %d%%", pct)
+					lastPct = pct
+				}
+			}
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			f.Close()
+			os.Remove(tmp)
+			return readErr
+		}
+	}
+	fmt.Fprintf(os.Stderr, "\n")
+
+	if err := f.Close(); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return os.Rename(tmp, dest)
 }
 
 func formatDuration(d time.Duration) string {
