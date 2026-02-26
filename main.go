@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	whisper "github.com/ggerganov/whisper.cpp/bindings/go/pkg/whisper"
@@ -20,6 +22,12 @@ import (
 type audioSegment struct {
 	samples  []float32
 	startSec float64
+}
+
+type transcriptSegment struct {
+	Start string `json:"start"`
+	End   string `json:"end"`
+	Text  string `json:"text"`
 }
 
 var defaultModelPath = "models/ggml-large-v3.bin"
@@ -44,6 +52,8 @@ func main() {
 	lang := flag.String("lang", "auto", "Language code (default: auto-detect)")
 	translate := flag.Bool("translate", false, "Translate to English")
 	prompt := flag.String("prompt", "", "Initial prompt to guide transcription")
+	format := flag.String("format", "txt", "Output format: txt, json, srt")
+	output := flag.String("output", "", "Output file (default: stdout)")
 	threads := flag.Int("threads", runtime.NumCPU(), "Number of threads")
 	help := flag.Bool("help", false, "Show help")
 	flag.Usage = func() {
@@ -121,6 +131,8 @@ func main() {
 	}
 	fmt.Fprintf(os.Stderr, "Found %d speech chunk(s)\n", len(chunks))
 
+	var segments []transcriptSegment
+
 	for i, chunk := range chunks {
 		ctx, err := model.NewContext()
 		if err != nil {
@@ -139,11 +151,11 @@ func main() {
 
 		offset := time.Duration(chunk.startSec * float64(time.Second))
 		segmentCb := func(segment whisper.Segment) {
-			fmt.Printf("[%s -> %s] %s\n",
-				formatDuration(segment.Start+offset),
-				formatDuration(segment.End+offset),
-				segment.Text,
-			)
+			segments = append(segments, transcriptSegment{
+				Start: formatDuration(segment.Start + offset),
+				End:   formatDuration(segment.End + offset),
+				Text:  segment.Text,
+			})
 		}
 		if err := ctx.Process(chunk.samples, nil, segmentCb, nil); err != nil {
 			fmt.Fprintf(os.Stderr, "Error processing chunk %d: %v\n", i+1, err)
@@ -151,7 +163,50 @@ func main() {
 		}
 	}
 
+	// Write output
+	out := os.Stdout
+	if *output != "" {
+		f, err := os.Create(*output)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating output file: %v\n", err)
+			os.Exit(1)
+		}
+		defer f.Close()
+		out = f
+	}
+
+	switch strings.ToLower(*format) {
+	case "json":
+		enc := json.NewEncoder(out)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(segments); err != nil {
+			fmt.Fprintf(os.Stderr, "Error writing JSON: %v\n", err)
+			os.Exit(1)
+		}
+	case "srt":
+		for i, seg := range segments {
+			fmt.Fprintf(out, "%d\n%s --> %s\n%s\n\n",
+				i+1,
+				srtTimestamp(seg.Start),
+				srtTimestamp(seg.End),
+				seg.Text,
+			)
+		}
+	default: // txt
+		for _, seg := range segments {
+			fmt.Fprintf(out, "[%s -> %s] %s\n", seg.Start, seg.End, seg.Text)
+		}
+	}
+
+	if *output != "" {
+		fmt.Fprintf(os.Stderr, "Output written to %s\n", *output)
+	}
 	fmt.Fprintf(os.Stderr, "Done.\n")
+}
+
+func srtTimestamp(ts string) string {
+	// Convert 00:00:00.000 to 00:00:00,000
+	return strings.Replace(ts, ".", ",", 1)
 }
 
 func segmentByVAD(samples []float32) ([]audioSegment, error) {
