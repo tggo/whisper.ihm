@@ -49,6 +49,43 @@ Flags:
 [00:00:06.100 -> 00:00:09.400] I'm doing well, thank you.
 ```
 
+## Install from release
+
+Download a pre-built binary from [Releases](https://github.com/tggo/whisper.ihm/releases):
+
+```bash
+# macOS (Apple Silicon)
+curl -L https://github.com/tggo/whisper.ihm/releases/latest/download/whisper-ihm-darwin-arm64.tar.gz | tar xz
+
+# Linux (amd64)
+curl -L https://github.com/tggo/whisper.ihm/releases/latest/download/whisper-ihm-linux-amd64.tar.gz | tar xz
+
+# Download the whisper model (~3 GB)
+mkdir -p models
+curl -L -o models/ggml-large-v3.bin \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin
+
+./whisper-ihm recording.mp3
+```
+
+## Docker
+
+```bash
+# Build the image (Linux, CPU-only)
+docker build -t whisper-ihm .
+
+# Download model and transcribe
+docker run -v $(pwd)/data:/data whisper-ihm -model /data/ggml-large-v3.bin /data/recording.mp3
+```
+
+The Dockerfile uses a multi-stage build: `golang:1.23-bookworm` for building (clones whisper.cpp + ten-vad, compiles with CGO), `debian:bookworm-slim` for runtime.
+
+## Build details
+
+- `-trimpath` strips local filesystem paths from the binary
+- macOS builds include Metal GPU acceleration
+- Linux/Docker builds are CPU-only
+
 ## How it works
 
 1. Decode MP3 to PCM, resample to 16kHz mono
