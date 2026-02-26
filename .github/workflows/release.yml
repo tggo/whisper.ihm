@@ -119,14 +119,14 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           brew tap tggo/tap
-          SHA=$(curl -sL "https://github.com/tggo/whisper.ihm/archive/refs/tags/${TAG}.tar.gz" | shasum -a 256 | cut -d' ' -f1)
+          export SHA=$(curl -sL "https://github.com/tggo/whisper.ihm/archive/refs/tags/${TAG}.tar.gz" | shasum -a 256 | cut -d' ' -f1)
           FORMULA="$(brew --repo tggo/tap)/Formula/whisper-ihm.rb"
           ruby -e '
             tag, sha = ENV["TAG"], ENV["SHA"]
             c = File.read(ARGV[0])
             c.sub!(%r{url "https://github\.com/tggo/whisper\.ihm/archive/refs/tags/[^"]*"},
                    %Q(url "https://github.com/tggo/whisper.ihm/archive/refs/tags/#{tag}.tar.gz"))
-            c.sub!(/sha256 "[a-f0-9]+"/, %Q(sha256 "#{sha}"))
+            c.sub!(/sha256 "[a-f0-9]*"/, %Q(sha256 "#{sha}"))
             c.gsub!(/\n  bottle do\n.*?\n  end\n/m, "\n")
             File.write(ARGV[0], c)
           ' "$FORMULA"
