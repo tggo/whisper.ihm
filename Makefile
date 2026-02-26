@@ -9,7 +9,7 @@ CGO_ENV := C_INCLUDE_PATH=$(CURDIR)/$(WHISPER_DIR)/include:$(CURDIR)/$(WHISPER_D
            LIBRARY_PATH=$(CURDIR)/$(BUILD_DIR)/src:$(CURDIR)/$(BUILD_DIR)/ggml/src:$(CURDIR)/$(BUILD_DIR)/ggml/src/ggml-metal:$(CURDIR)/$(BUILD_DIR)/ggml/src/ggml-blas \
            CGO_LDFLAGS="-lwhisper -lggml -lggml-base -lggml-cpu -lggml-blas -lggml-metal -lm -lstdc++ -framework Accelerate -framework Metal -framework Foundation -framework CoreGraphics"
 
-.PHONY: all setup build testdata clean distclean
+.PHONY: all setup build test clean distclean
 
 all: setup build
 
@@ -40,8 +40,8 @@ build: $(BUILD_DIR)/src/libwhisper.a
 	$(CGO_ENV) go mod tidy
 	$(CGO_ENV) go build -o $(BINARY) .
 
-testdata: build
-	./$(BINARY) testdata/nano_banana.mp3
+test: build
+	./$(BINARY) testdata/short.mp3
 
 clean:
 	rm -rf $(BUILD_DIR) $(BINARY)

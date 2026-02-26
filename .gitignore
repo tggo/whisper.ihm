@@ -8,8 +8,5 @@ ten-vad/
 # Models (downloaded at build time)
 models/
 
-# Test data
-testdata/
-
 # OS
 .DS_Store
