@@ -140,16 +140,21 @@ jobs:
             --root-url "https://github.com/tggo/whisper.ihm/releases/download/${{ github.ref_name }}" \
             tggo/tap/whisper-ihm
 
+      - name: Merge bottle into formula
+        run: brew bottle --merge --write --no-commit *.bottle.json
+
       - name: Upload bottle to release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload "${{ github.ref_name }}" whisper-ihm--*.bottle.tar.gz \
+          for f in whisper-ihm--*.bottle.tar.gz; do
+            mv "$f" "${f/--/-}"
+          done
+          gh release upload "${{ github.ref_name }}" whisper-ihm-*.bottle.tar.gz \
             --repo ${{ github.repository }}
 
-      - name: Update tap formula
+      - name: Push tap formula
         run: |
-          brew bottle --merge --write --no-commit *.bottle.json
           cp "$(brew --repo tggo/tap)/Formula/whisper-ihm.rb" homebrew-tap/Formula/
           cd homebrew-tap
           git config user.name "github-actions[bot]"
