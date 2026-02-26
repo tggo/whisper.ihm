@@ -1,0 +1,15 @@
+# Build artifacts
+whisper-ihm
+
+# Dependencies (cloned at build time)
+whisper.cpp/
+ten-vad/
+
+# Models (downloaded at build time)
+models/
+
+# Test data
+testdata/
+
+# OS
+.DS_Store
