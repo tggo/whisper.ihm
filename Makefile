@@ -38,7 +38,7 @@ $(MODEL): | $(MODEL_DIR)
 
 build: $(BUILD_DIR)/src/libwhisper.a
 	$(CGO_ENV) go mod tidy
-	$(CGO_ENV) go build -o $(BINARY) .
+	$(CGO_ENV) go build -trimpath -o $(BINARY) .
 
 test: build
 	./$(BINARY) testdata/short.mp3
