@@ -27,6 +27,8 @@ var defaultModelPath = "models/ggml-large-v3.bin"
 func main() {
 	modelPath := flag.String("model", defaultModelPath, "Path to GGML model")
 	lang := flag.String("lang", "auto", "Language code (default: auto-detect)")
+	translate := flag.Bool("translate", false, "Translate to English")
+	prompt := flag.String("prompt", "", "Initial prompt to guide transcription")
 	threads := flag.Int("threads", runtime.NumCPU(), "Number of threads")
 	help := flag.Bool("help", false, "Show help")
 	flag.Usage = func() {
@@ -96,6 +98,10 @@ func main() {
 			os.Exit(1)
 		}
 		ctx.SetThreads(uint(*threads))
+		ctx.SetTranslate(*translate)
+		if *prompt != "" {
+			ctx.SetInitialPrompt(*prompt)
+		}
 
 		offset := time.Duration(chunk.startSec * float64(time.Second))
 		segmentCb := func(segment whisper.Segment) {
