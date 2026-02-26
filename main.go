@@ -20,8 +20,10 @@ type audioSegment struct {
 	startSec float64
 }
 
+var defaultModelPath = "models/ggml-large-v3.bin"
+
 func main() {
-	modelPath := flag.String("model", "models/ggml-large-v3.bin", "Path to GGML model")
+	modelPath := flag.String("model", defaultModelPath, "Path to GGML model")
 	lang := flag.String("lang", "auto", "Language code (default: auto-detect)")
 	threads := flag.Int("threads", runtime.NumCPU(), "Number of threads")
 	help := flag.Bool("help", false, "Show help")
