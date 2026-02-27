@@ -140,6 +140,15 @@ jobs:
                    %Q(url "https://github.com/tggo/whisper.ihm/archive/refs/tags/#{tag}.tar.gz"))
             c.sub!(/sha256 "[a-f0-9]*"/, %Q(sha256 "#{sha}"))
             c.gsub!(/\n  bottle do\n.*?\n  end\n/m, "\n")
+            # Ensure patch step exists in install
+            unless c.include?("Apply whisper.cpp patches")
+              c.sub!(
+                /# Build whisper\.cpp/,
+                "# Apply whisper.cpp patches\n    Dir.glob(\"patches/*.patch\").each do |p|\n      system \"git\", \"-C\", \"whisper.cpp\", \"apply\", \"../\" + p\n    end\n\n    # Build whisper.cpp"
+              )
+            end
+            # Update default model path to turbo
+            c.gsub!("ggml-large-v3.bin", "ggml-large-v3-turbo.bin")
             File.write(ARGV[0], c)
           ' "$FORMULA"
 
