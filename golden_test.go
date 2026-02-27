@@ -14,7 +14,7 @@ import (
 func TestGolden(t *testing.T) {
 	modelPath := os.Getenv("WHISPER_MODEL")
 	if modelPath == "" {
-		modelPath = "models/ggml-large-v3.bin"
+		modelPath = "models/ggml-large-v3-turbo.bin"
 	}
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
 		t.Skipf("Model not found at %s; set WHISPER_MODEL or run make setup", modelPath)

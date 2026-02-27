@@ -29,6 +29,12 @@ jobs:
           git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git
           git clone --depth 1 https://github.com/TEN-framework/ten-vad.git
 
+      - name: Apply whisper.cpp patches
+        run: |
+          for p in patches/*.patch; do
+            [ -f "$p" ] && git -C whisper.cpp apply "../$p"
+          done
+
       - name: Build whisper.cpp
         run: |
           cmake -S whisper.cpp -B whisper.cpp/build \
@@ -73,6 +79,12 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git
           git clone --depth 1 https://github.com/TEN-framework/ten-vad.git
+
+      - name: Apply whisper.cpp patches
+        run: |
+          for p in patches/*.patch; do
+            [ -f "$p" ] && git -C whisper.cpp apply "../$p"
+          done
 
       - name: Build whisper.cpp
         run: |

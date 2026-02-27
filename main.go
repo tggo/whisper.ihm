@@ -30,7 +30,7 @@ type transcriptSegment struct {
 	Text  string `json:"text"`
 }
 
-var defaultModelPath = "models/ggml-large-v3.bin"
+var defaultModelPath = "models/ggml-large-v3-turbo.bin"
 
 var modelSizes = map[string]struct{ file, size string }{
 	"tiny":           {"ggml-tiny.bin", "75 MB"},
@@ -48,7 +48,7 @@ var modelSizes = map[string]struct{ file, size string }{
 
 func main() {
 	modelPath := flag.String("model", "", "Path to GGML model (overrides -size)")
-	size := flag.String("size", "large-v3", "Model size: tiny, base, small, medium, large-v2, large-v3, large-v3-turbo (append .en for English-only)")
+	size := flag.String("size", "large-v3-turbo", "Model size: tiny, base, small, medium, large-v2, large-v3, large-v3-turbo (append .en for English-only)")
 	lang := flag.String("lang", "auto", "Language code (default: auto-detect)")
 	translate := flag.Bool("translate", false, "Translate to English")
 	prompt := flag.String("prompt", "", "Initial prompt to guide transcription")
@@ -145,6 +145,9 @@ func main() {
 		}
 		ctx.SetThreads(uint(*threads))
 		ctx.SetTranslate(*translate)
+		ctx.SetBeamSize(1)
+		ctx.SetTemperature(0)
+		ctx.SetTemperatureFallback(-1)
 		if *prompt != "" {
 			ctx.SetInitialPrompt(*prompt)
 		}
@@ -165,6 +168,8 @@ func main() {
 			os.Exit(1)
 		}
 	}
+
+	segments = deduplicateSegments(segments)
 
 	// Write output
 	out := os.Stdout
@@ -223,8 +228,8 @@ func segmentByVAD(samples []float32) ([]audioSegment, error) {
 	const (
 		sampleRate   = 16000
 		hopSize      = 256   // 16ms frames
-		threshold    = 0.45  // VAD sensitivity
-		silenceGap   = 31    // ~500ms of silence to split (sampleRate * 0.5 / hopSize)
+		threshold    = 0.5   // VAD onset sensitivity (higher = fewer false positives)
+		silenceGap   = 19    // ~300ms of silence to split (sampleRate * 0.3 / hopSize)
 		paddingSamps = 3200  // 200ms padding (sampleRate * 0.2)
 	)
 
