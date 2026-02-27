@@ -1,0 +1,60 @@
+diff --git a/bindings/go/pkg/whisper/context.go b/bindings/go/pkg/whisper/context.go
+index d356d72..bb0c6bb 100644
+--- a/bindings/go/pkg/whisper/context.go
++++ b/bindings/go/pkg/whisper/context.go
+@@ -360,11 +360,12 @@ func (context *context) IsLANG(t Token, lang string) bool {
+ 
+ func toSegment(ctx *whisper.Context, n int) Segment {
+ 	return Segment{
+-		Num:    n,
+-		Text:   strings.TrimSpace(ctx.Whisper_full_get_segment_text(n)),
+-		Start:  time.Duration(ctx.Whisper_full_get_segment_t0(n)) * time.Millisecond * 10,
+-		End:    time.Duration(ctx.Whisper_full_get_segment_t1(n)) * time.Millisecond * 10,
+-		Tokens: toTokens(ctx, n),
++		Num:          n,
++		Text:         strings.TrimSpace(ctx.Whisper_full_get_segment_text(n)),
++		Start:        time.Duration(ctx.Whisper_full_get_segment_t0(n)) * time.Millisecond * 10,
++		End:          time.Duration(ctx.Whisper_full_get_segment_t1(n)) * time.Millisecond * 10,
++		Tokens:       toTokens(ctx, n),
++		NoSpeechProb: ctx.Whisper_full_get_segment_no_speech_prob(n),
+ 	}
+ }
+ 
+diff --git a/bindings/go/pkg/whisper/interface.go b/bindings/go/pkg/whisper/interface.go
+index 2b275dd..4643783 100644
+--- a/bindings/go/pkg/whisper/interface.go
++++ b/bindings/go/pkg/whisper/interface.go
+@@ -107,6 +107,9 @@ type Segment struct {
+ 
+ 	// The tokens of the segment.
+ 	Tokens []Token
++
++	// No-speech probability for this segment (0.0 = likely speech, 1.0 = likely silence).
++	NoSpeechProb float32
+ }
+ 
+ // Token is a text or special token
+diff --git a/bindings/go/whisper.go b/bindings/go/whisper.go
+index 3ef7341..bfd71d6 100644
+--- a/bindings/go/whisper.go
++++ b/bindings/go/whisper.go
+@@ -398,6 +398,11 @@ func (ctx *Context) Whisper_full_get_token_p(segment int, token int) float32 {
+ 	return float32(C.whisper_full_get_token_p((*C.struct_whisper_context)(ctx), C.int(segment), C.int(token)))
+ }
+ 
++// Get the no_speech probability for the specified segment.
++func (ctx *Context) Whisper_full_get_segment_no_speech_prob(segment int) float32 {
++	return float32(C.whisper_full_get_segment_no_speech_prob((*C.struct_whisper_context)(ctx), C.int(segment)))
++}
++
+ ///////////////////////////////////////////////////////////////////////////////
+ // CALLBACKS
+ 
+@@ -468,3 +473,7 @@ func (t TokenData) T1() int64 {
+ func (t TokenData) Id() Token {
+ 	return Token(t.id)
+ }
++
++func (t TokenData) Plog() float32 {
++	return float32(t.plog)
++}

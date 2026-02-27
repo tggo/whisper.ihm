@@ -41,7 +41,11 @@ build: $(BUILD_DIR)/src/libwhisper.a
 	$(CGO_ENV) go build -trimpath -o $(BINARY) .
 
 test: build
+	$(CGO_ENV) go test -run 'TestIsKnownHallucination|TestCompressionRatio|TestShouldSkipSegment|TestWordErrorRate' -v
 	./$(BINARY) testdata/short.mp3
+
+test-golden: build
+	$(CGO_ENV) go test -run TestGolden -v
 
 clean:
 	rm -rf $(BUILD_DIR) $(BINARY)

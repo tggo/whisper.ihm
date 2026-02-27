@@ -151,6 +151,9 @@ func main() {
 
 		offset := time.Duration(chunk.startSec * float64(time.Second))
 		segmentCb := func(segment whisper.Segment) {
+			if shouldSkipSegment(segment) {
+				return
+			}
 			segments = append(segments, transcriptSegment{
 				Start: formatDuration(segment.Start + offset),
 				End:   formatDuration(segment.End + offset),
@@ -280,9 +283,9 @@ func segmentByVAD(samples []float32) ([]audioSegment, error) {
 		segments = append(segments, rawSegment{speechStart, totalFrames - 1})
 	}
 
-	// If no speech detected, return the whole audio as one chunk
+	// If no speech detected, return empty (no hallucinations on silence)
 	if len(segments) == 0 {
-		return []audioSegment{{samples: samples, startSec: 0}}, nil
+		return nil, nil
 	}
 
 	result := make([]audioSegment, 0, len(segments))

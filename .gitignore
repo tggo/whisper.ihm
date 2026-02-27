@@ -8,5 +8,8 @@ ten-vad/
 # Models (downloaded at build time)
 models/
 
+# Temp / research
+tmp/
+
 # OS
 .DS_Store
